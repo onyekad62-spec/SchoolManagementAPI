@@ -50,6 +50,7 @@ INSTALLED_APPS = [
 
     # Local applications.
     "accounts",
+    "school",
 ]
 
 MIDDLEWARE = [
