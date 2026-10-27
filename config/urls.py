@@ -12,6 +12,9 @@ urlpatterns = [
     # Authentication endpoints
     path("api/accounts/", include("accounts.urls")),
 
+    # Student and teacher endpoints
+    path("api/school/", include("school.urls")),
+
     # API schema and interactive documentation
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
