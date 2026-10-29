@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import Student, Teacher
+
+from .models import Student, Teacher, SchoolClass, Subject
 
 
 class StudentSerializer(serializers.ModelSerializer):
@@ -33,3 +34,15 @@ class TeacherSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
+
+
+class SchoolClassSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SchoolClass
+        fields = "__all__"
+
+
+class SubjectSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Subject
+        fields = "__all__"
