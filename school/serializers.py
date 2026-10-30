@@ -37,9 +37,22 @@ class TeacherSerializer(serializers.ModelSerializer):
 
 
 class SchoolClassSerializer(serializers.ModelSerializer):
+    students = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Student.objects.all(),
+        required=False,
+    )
+
     class Meta:
         model = SchoolClass
-        fields = "__all__"
+        fields = [
+            "id",
+            "name",
+            "level",
+            "academic_year",
+            "students",
+        ]
+        read_only_fields = ["id"]
 
 
 class SubjectSerializer(serializers.ModelSerializer):

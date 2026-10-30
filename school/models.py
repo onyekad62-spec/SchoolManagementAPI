@@ -29,12 +29,18 @@ class Teacher(models.Model):
 
     def __str__(self):
         return f"{self.employee_number} - {self.user.username}"
-    
+
 
 class SchoolClass(models.Model):
     name = models.CharField(max_length=100)
     level = models.CharField(max_length=50)
     academic_year = models.CharField(max_length=20)
+
+    students = models.ManyToManyField(
+        Student,
+        blank=True,
+        related_name="enrolled_classes",
+    )
 
     def __str__(self):
         return f"{self.name} - {self.academic_year}"
@@ -56,4 +62,3 @@ class Subject(models.Model):
 
     def __str__(self):
         return self.name
-
