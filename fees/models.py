@@ -1,8 +1,14 @@
+
 from django.db import models
 from school.models import Student, SchoolClass
 
 
 class SchoolFee(models.Model):
+    class Term(models.TextChoices):
+        FIRST = "FIRST_TERM", "First Term"
+        SECOND = "SECOND_TERM", "Second Term"
+        THIRD = "THIRD_TERM", "Third Term"
+
     name = models.CharField(max_length=100)
     school_class = models.ForeignKey(
         SchoolClass,
@@ -11,6 +17,11 @@ class SchoolFee(models.Model):
     )
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     academic_year = models.CharField(max_length=20)
+    term = models.CharField(
+        max_length=20,
+        choices=Term.choices,
+        default=Term.FIRST
+    )
     due_date = models.DateField()
     created_at = models.DateTimeField(auto_now_add=True)
 
