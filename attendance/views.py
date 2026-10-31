@@ -1,12 +1,29 @@
 
 from django.db.models import Count, Q
+
 from rest_framework import viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, SAFE_METHODS
 from rest_framework.response import Response
 
 from .models import Attendance
 from .serializers import AttendanceSerializer
+
+
+class AttendancePermission(IsAuthenticated):
+    """
+    All authenticated users can view attendance.
+    Only teachers and administrators can manage records.
+    """
+
+    def has_permission(self, request, view):
+        if not super().has_permission(request, view):
+            return False
+
+        if request.method in SAFE_METHODS:
+            return True
+
+        return request.user.role in ("TEACHER", "ADMIN")
 
 
 class AttendanceViewSet(viewsets.ModelViewSet):
@@ -16,7 +33,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
     ).all()
 
     serializer_class = AttendanceSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AttendancePermission]
 
     def get_queryset(self):
         queryset = super().get_queryset()

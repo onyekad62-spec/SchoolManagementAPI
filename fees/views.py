@@ -1,15 +1,26 @@
-
 from django.db.models import Sum
 
 from rest_framework import viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, SAFE_METHODS
 from rest_framework.response import Response
 
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
 
+from school.models import Student
 from .models import SchoolFee, FeePayment
 from .serializers import SchoolFeeSerializer, FeePaymentSerializer
+
+
+class FeeManagementPermission(IsAuthenticated):
+    def has_permission(self, request, view):
+        if not super().has_permission(request, view):
+            return False
+
+        if request.method in SAFE_METHODS:
+            return True
+
+        return request.user.role in ("TEACHER", "ADMIN")
 
 
 class SchoolFeeViewSet(viewsets.ModelViewSet):
@@ -17,7 +28,7 @@ class SchoolFeeViewSet(viewsets.ModelViewSet):
         "school_class"
     ).all()
     serializer_class = SchoolFeeSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [FeeManagementPermission]
 
     @extend_schema(
         parameters=[
@@ -41,15 +52,17 @@ class SchoolFeeViewSet(viewsets.ModelViewSet):
             )
 
         try:
-            student = __import__(
-                "school.models", fromlist=["Student"]
-            ).Student.objects.get(id=int(student_id))
+            student = Student.objects.get(id=int(student_id))
         except (ValueError, TypeError):
-            return Response({"error": "Invalid student_id."}, status=400)
-        except __import__(
-            "school.models", fromlist=["Student"]
-        ).Student.DoesNotExist:
-            return Response({"error": "Student not found."}, status=404)
+            return Response(
+                {"error": "Invalid student_id."},
+                status=400
+            )
+        except Student.DoesNotExist:
+            return Response(
+                {"error": "Student not found."},
+                status=404
+            )
 
         fees = SchoolFee.objects.filter(
             school_class__students=student
@@ -95,7 +108,7 @@ class FeePaymentViewSet(viewsets.ModelViewSet):
         "school_fee",
     ).all()
     serializer_class = FeePaymentSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [FeeManagementPermission]
 
     @extend_schema(
         parameters=[

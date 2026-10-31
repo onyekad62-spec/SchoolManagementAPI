@@ -1,9 +1,8 @@
-
 from django.db.models import Sum, Count, Avg
 
 from rest_framework import viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, SAFE_METHODS
 from rest_framework.response import Response
 
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
@@ -16,13 +15,24 @@ from .serializers import (
 )
 
 
+class ExamManagementPermission(IsAuthenticated):
+    def has_permission(self, request, view):
+        if not super().has_permission(request, view):
+            return False
+
+        if request.method in SAFE_METHODS:
+            return True
+
+        return request.user.role in ("TEACHER", "ADMIN")
+
+
 class ExamViewSet(viewsets.ModelViewSet):
     queryset = Exam.objects.select_related(
         "school_class",
         "subject"
     ).all()
     serializer_class = ExamSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [ExamManagementPermission]
 
     @action(detail=True, methods=["get"])
     def results(self, request, pk=None):
@@ -66,7 +76,7 @@ class StudentScoreViewSet(viewsets.ModelViewSet):
         "student__user"
     ).all()
     serializer_class = StudentScoreSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [ExamManagementPermission]
 
     @extend_schema(
         parameters=[
