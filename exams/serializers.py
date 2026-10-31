@@ -1,5 +1,20 @@
+
 from rest_framework import serializers
 from .models import Exam, StudentScore
+
+
+def calculate_grade(percentage):
+    if percentage >= 70:
+        return "A"
+    elif percentage >= 60:
+        return "B"
+    elif percentage >= 50:
+        return "C"
+    elif percentage >= 45:
+        return "D"
+    elif percentage >= 40:
+        return "E"
+    return "F"
 
 
 class ExamSerializer(serializers.ModelSerializer):
@@ -37,6 +52,8 @@ class StudentScoreSerializer(serializers.ModelSerializer):
         source="exam.name",
         read_only=True
     )
+    percentage = serializers.SerializerMethodField()
+    grade = serializers.SerializerMethodField()
 
     class Meta:
         model = StudentScore
@@ -47,10 +64,23 @@ class StudentScoreSerializer(serializers.ModelSerializer):
             "student",
             "student_name",
             "marks_obtained",
+            "percentage",
+            "grade",
             "remarks",
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
+
+    def get_percentage(self, obj):
+        if not obj.exam.total_marks:
+            return 0
+        return round(
+            float(obj.marks_obtained) / obj.exam.total_marks * 100,
+            2
+        )
+
+    def get_grade(self, obj):
+        return calculate_grade(self.get_percentage(obj))
 
     def validate(self, attrs):
         exam = attrs.get("exam", getattr(self.instance, "exam", None))
