@@ -1,29 +1,21 @@
-
-"""
-Django settings for config project.
-"""
-
 import os
 from datetime import timedelta
 from pathlib import Path
+from urllib.parse import urlparse, parse_qs, unquote
 
 from dotenv import load_dotenv
 
-# Build paths inside the project.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Load local environment variables from the project root .env file.
 load_dotenv(BASE_DIR / ".env")
 
-# Security settings.
+# Security
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 
 if not SECRET_KEY:
-    raise ValueError(
-        "DJANGO_SECRET_KEY is missing. Check your project's .env file."
-    )
+    raise ValueError("DJANGO_SECRET_KEY is missing.")
 
-DEBUG = os.getenv("DEBUG", "True").lower() == "true"
+DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
 ALLOWED_HOSTS = [
     host.strip()
@@ -33,32 +25,44 @@ ALLOWED_HOSTS = [
     if host.strip()
 ]
 
-# Application definition.
+RENDER_EXTERNAL_HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME")
+
+if RENDER_EXTERNAL_HOSTNAME:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
+    if origin.strip()
+]
+
+if RENDER_EXTERNAL_HOSTNAME:
+    CSRF_TRUSTED_ORIGINS.append(
+        f"https://{RENDER_EXTERNAL_HOSTNAME}"
+    )
+
+# Applications
 INSTALLED_APPS = [
-    # Django built-in applications.
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-
-    # Third-party applications.
     "rest_framework",
     "django_filters",
     "drf_spectacular",
-
-    # Local applications.
     "accounts",
     "school",
     "attendance",
     "exams",
     "fees",
-    
 ]
 
+# Middleware
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -86,23 +90,42 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-# Database.
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv(
-            "DB_NAME", "school_management_db"
-        ),
-        "USER": os.getenv(
-            "DB_USER", "school_api_user"
-        ),
-        "PASSWORD": os.getenv("DB_PASSWORD", "Dave123"),
-        "HOST": os.getenv("DB_HOST", "127.0.0.1"),
-        "PORT": os.getenv("DB_PORT", "5432"),
-    }
-}
+# Database: Render DATABASE_URL or local PostgreSQL variables
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Password validation.
+if DATABASE_URL:
+    parsed_database_url = urlparse(DATABASE_URL)
+    database_options = parse_qs(parsed_database_url.query)
+
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": unquote(parsed_database_url.path.lstrip("/")),
+            "USER": unquote(parsed_database_url.username or ""),
+            "PASSWORD": unquote(parsed_database_url.password or ""),
+            "HOST": parsed_database_url.hostname,
+            "PORT": parsed_database_url.port or 5432,
+            "CONN_MAX_AGE": 600,
+            "OPTIONS": {
+                "sslmode": database_options.get(
+                    "sslmode", ["require"]
+                )[0],
+            },
+        }
+    }
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv("DB_NAME", "school_management_db"),
+            "USER": os.getenv("DB_USER", "school_api_user"),
+            "PASSWORD": os.getenv("DB_PASSWORD", ""),
+            "HOST": os.getenv("DB_HOST", "127.0.0.1"),
+            "PORT": os.getenv("DB_PORT", "5432"),
+        }
+    }
+
+# Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": (
@@ -130,25 +153,31 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# Internationalization.
+# Internationalization
 LANGUAGE_CODE = "en-us"
-
 TIME_ZONE = "UTC"
-
 USE_I18N = True
-
 USE_TZ = True
 
-# Static files.
+# Static files
 STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
-# Default primary key field type.
+# Default primary key
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# Custom user model.
+# Custom user model
 AUTH_USER_MODEL = "accounts.User"
 
-# Django REST Framework.
+# Django REST Framework
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -164,7 +193,7 @@ REST_FRAMEWORK = {
     ],
 }
 
-# API documentation.
+# API documentation
 SPECTACULAR_SETTINGS = {
     "TITLE": "School Management System API",
     "DESCRIPTION": (
@@ -174,9 +203,12 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "1.0.0",
 }
 
-# JWT authentication.
+# JWT authentication
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
+
+# Render HTTPS support
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
